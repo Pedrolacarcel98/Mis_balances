@@ -26,9 +26,9 @@ if not df.empty:
     # --- SECCIÓN DE BALANCE (DISEÑO) ---
     st.subheader("Resumen: ")
     col_m1, col_m2, col_m3, col_m4 = st.columns(4)
-    
+
     col_m1.metric("Total Ingresos", f"{total_ingresos:.2f} €")
-    col_m2.metric("Total Gastos", f"{total_gastos:.2f} €", delta=f"-{total_gastos:.2f} €", delta_color="inverse")
+    col_m2.metric("Total Gastos", f"{total_gastos:.2f} €", delta=f"-{total_gastos:.2f} €", delta_color="red")
     
     # El balance cambia de color automáticamente con st.metric
     # Opcional: Usamos Markdown para un control total del color del título
