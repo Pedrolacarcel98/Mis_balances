@@ -87,10 +87,17 @@ with st.expander("Añadir Movimiento"):
 # --- BORRADO ---
 st.divider()
 if not df.empty:
-    with st.expander("Borrar Datos"):
-        id_borrar = st.number_input("ID a eliminar", min_value=1, step=1)
-        if st.button("Eliminar"):
-            df = df[df['id'] != id_borrar]
-            conn.update(data=df)
-            st.warning(f"ID {id_borrar} borrado.")
+    with st.expander("🗑️ Eliminar un registro"):
+        # Creamos una lista de opciones que el humano sí entienda
+        opciones = df.apply(lambda x: f"{x['id']} | {x['fecha']} - {x['concepto']} ({x['monto']}€)", axis=1).tolist()
+        
+        seleccion = st.selectbox("Busca el movimiento que quieres quitar:", opciones)
+        
+        # Extraemos el ID de la cadena seleccionada
+        id_a_borrar = int(seleccion.split(" | ")[0])
+        
+        if st.button("Confirmar Eliminación", type="primary", use_container_width=True):
+            df_final = df[df['id'] != id_a_borrar]
+            conn.update(data=df_final)
+            st.success("Registro eliminado con éxito")
             st.rerun()
