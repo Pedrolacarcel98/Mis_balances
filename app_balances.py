@@ -15,7 +15,7 @@ if not df.empty:
     df['monto'] = pd.to_numeric(df['monto'], errors='coerce')
     df['id'] = pd.to_numeric(df['id'], errors='coerce')
 
-st.title("Control de Gastos e Ingresos 💰")
+st.title("Control de Gastos e Ingresos")
 # --- CÁLCULOS DE BALANCE ---
 if not df.empty:
     total_ingresos = df[df['tipo'] == 'Ingreso']['monto'].sum()
@@ -36,8 +36,8 @@ if not df.empty:
     
     st.markdown(f"""
         <div style="background-color: rgba(200, 200, 200, 0.1); padding: 20px; border-radius: 10px; border-left: 10px solid {color_balance};">
-            <h3 style="margin:0; color: {color_balance};">Estado Actual: {'✅ En Positivo' if balance_neto >= 0 else '⚠️ En Negativo'}</h3>
-            <p style="font-size: 24px; font-weight: bold; margin:0;">{balance_neto:.2f} €</p>
+            <h3 style="margin:0;">Estado Actual:</h3>
+            <p style="font-size: 24px; color: {color_balance}; font-weight: bold; margin:0;">{balance_neto:.2f} €</p>
         </div>
     """, unsafe_allow_html=True)
 
@@ -77,20 +77,6 @@ with st.expander("Añadir Movimiento"):
             conn.update(data=df)
             st.success("¡Guardado en Google Sheets!")
             st.rerun()
-
-# --- TABLAS SEPARADAS ---
-st.divider()
-c_izq, c_der = st.columns(2)
-
-with c_izq:
-    st.subheader("📥 Ingresos")
-    df_ing = df[df["tipo"] == "Ingreso"]
-    st.table(df_ing[["id", "fecha", "concepto", "monto"]])
-
-with c_der:
-    st.subheader("📤 Gastos")
-    df_gas = df[df["tipo"] == "Gasto"]
-    st.table(df_gas[["id", "fecha", "concepto", "monto"]])
 
 # --- BORRADO ---
 st.divider()
