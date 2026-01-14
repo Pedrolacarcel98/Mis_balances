@@ -14,7 +14,7 @@ c.execute('CREATE TABLE IF NOT EXISTS registros (id INTEGER PRIMARY KEY AUTOINCR
 conn.commit()
 
 st.set_page_config(page_title="Mis Finanzas", page_icon="💰", layout="wide")
-st.title("Mi Gestor de Gastos Pro")
+st.title("Mi Gestor de Finanzas")
 
 # --- SECCIÓN: ENTRADA DE DATOS ---
 with st.expander("➕ Añadir Nuevo Registro"):
@@ -66,7 +66,7 @@ if not df.empty:
 
     # --- SECCIÓN: BORRADO ---
     st.divider()
-    with st.expander("🗑️ Gestionar / Borrar Entradas"):
+    with st.expander("Borrar Entradas"):
         registro_a_borrar = st.selectbox("Selecciona registro para eliminar", 
                                          df['id'].astype(str) + " - " + df['concepto'])
         id_borrar = registro_a_borrar.split(" - ")[0]
