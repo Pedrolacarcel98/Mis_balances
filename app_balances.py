@@ -15,7 +15,46 @@ if not df.empty:
     df['monto'] = pd.to_numeric(df['monto'], errors='coerce')
     df['id'] = pd.to_numeric(df['id'], errors='coerce')
 
-st.title("📊 Control de Gastos Persistente")
+st.title("Control de Gastos e Ingresos 💰")
+# --- CÁLCULOS DE BALANCE ---
+if not df.empty:
+    total_ingresos = df[df['tipo'] == 'Ingreso']['monto'].sum()
+    total_gastos = df[df['tipo'] == 'Gasto']['monto'].sum()
+    balance_neto = total_ingresos - total_gastos
+
+    # --- SECCIÓN DE BALANCE (DISEÑO) ---
+    st.subheader("💰 Resumen Financiero")
+    col_m1, col_m2, col_m3 = st.columns(3)
+    
+    col_m1.metric("Total Ingresos", f"{total_ingresos:.2f} €")
+    col_m2.metric("Total Gastos", f"{total_gastos:.2f} €", delta=f"-{total_gastos:.2f} €", delta_color="inverse")
+    
+    # El balance cambia de color automáticamente con st.metric
+    # Opcional: Usamos Markdown para un control total del color del título
+    color_balance = "green" if balance_neto >= 0 else "red"
+    col_m3.metric("Balance Neto", f"{balance_neto:.2f} €", delta=f"{balance_neto:.2f} €")
+    
+    st.markdown(f"""
+        <div style="background-color: rgba(200, 200, 200, 0.1); padding: 20px; border-radius: 10px; border-left: 10px solid {color_balance};">
+            <h3 style="margin:0; color: {color_balance};">Estado Actual: {'✅ En Positivo' if balance_neto >= 0 else '⚠️ En Negativo'}</h3>
+            <p style="font-size: 24px; font-weight: bold; margin:0;">{balance_neto:.2f} €</p>
+        </div>
+    """, unsafe_allow_html=True)
+
+# --- TABLAS SEPARADAS CON MEJOR ESTILO ---
+st.divider()
+c_izq, c_der = st.columns(2)
+
+with c_izq:
+    st.subheader("📥 Ingresos")
+    df_ing = df[df["tipo"] == "Ingreso"].sort_values("fecha", ascending=False)
+    # Cambiamos st.table por st.dataframe para que se vea más moderno y tenga scroll si crece mucho
+    st.dataframe(df_ing[["fecha", "concepto", "monto"]], use_container_width=True, hide_index=True)
+
+with c_der:
+    st.subheader("📤 Gastos")
+    df_gas = df[df["tipo"] == "Gasto"].sort_values("fecha", ascending=False)
+    st.dataframe(df_gas[["fecha", "concepto", "monto"]], use_container_width=True, hide_index=True)
 
 # --- FORMULARIO ---
 with st.expander("Añadir Movimiento"):
