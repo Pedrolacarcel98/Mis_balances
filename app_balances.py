@@ -24,8 +24,10 @@ if not df.empty:
     total_ingresos = df[df['tipo'] == 'Ingreso']['monto'].sum()
     total_gastos = df[df['tipo'] == 'Gasto']['monto'].sum()
     total_deudas = df[df['tipo'] == 'Deuda']['monto'].sum()
-    balance_neto = total_ingresos - total_gastos
-
+    #pagos de deudas a cuenta:
+    pagos_deudas_total = df[df['tipo'] == 'Pago Deuda']['monto'].sum()
+    balance_neto = total_ingresos - (total_gastos + pagos_deudas_total)
+    balance_deudas = total_deudas - pagos_deudas_total
     st.subheader("Resumen:")
     col_m1, col_m2, col_m3, col_m4 = st.columns(4)
     
@@ -34,8 +36,9 @@ if not df.empty:
     
     color_balance = "green" if balance_neto >= 0 else "red"
     col_m3.metric("Balance Neto", f"{balance_neto:,.2f} €", delta=f"{balance_neto:,.2f} €")
-    col_m4.metric("Total Deudas", f"{total_deudas:,.2f} €")
-
+    col_m4.metric("Total Deudas", f"{balance_deudas:,.2f} €")
+    
+    
     st.markdown(f"""
         <div style="background-color: rgba(200, 200, 200, 0.1); padding: 20px; border-radius: 10px; border-left: 10px solid {color_balance};">
             <h3 style="margin:0;">Estado Actual:</h3>
@@ -66,7 +69,7 @@ st.divider()
 with st.expander("➕ Añadir Movimiento"):
     with st.form("form_add", clear_on_submit=True):
         col1, col2, col3 = st.columns(3)
-        tipo = col1.selectbox("Tipo", ["Ingreso", "Gasto", "Deuda"])
+        tipo = col1.selectbox("Tipo", ["Ingreso", "Gasto", "Deuda", "Pago Deuda"])
         concepto = col2.text_input("Concepto")
         monto = col3.number_input("Euros", min_value=0.0, step=0.01)
         
