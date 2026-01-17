@@ -60,9 +60,13 @@ with c_der:
     df_gas = df[df["tipo"] == "Gasto"].sort_values("fecha", ascending=False)
     st.dataframe(df_gas[["fecha", "concepto", "monto"]], use_container_width=True, hide_index=True)
 
-with st.expander("📄 Ver Deudas Detalladas"):
+with st.expander("📄 Ver Deudas"):
     df_deudas = df[df["tipo"] == "Deuda"].sort_values("fecha", ascending=False)
     st.dataframe(df_deudas[["fecha", "concepto", "monto"]], use_container_width=True, hide_index=True)
+
+with st.expander("📄 Ver Pagos de Deudas"):
+    df_pagos_deudas = df[df["tipo"] == "Pago Deuda"].sort_values("fecha", ascending=False)
+    st.dataframe(df_pagos_deudas[["fecha", "concepto", "monto"]], use_container_width=True, hide_index=True)
 
 # --- 4. FORMULARIO DE ENTRADA ---
 st.divider()
