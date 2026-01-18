@@ -11,23 +11,37 @@ conn = st.connection("gsheets", type=GSheetsConnection)
 df = conn.read(ttl=0)
 
 if not df.empty:
-    # Aseguramos que el ID sea entero y sin valores nulos para evitar el error de borrado
     df['id'] = pd.to_numeric(df['id'], errors='coerce').fillna(0).astype(int)
     df['monto'] = pd.to_numeric(df['monto'], errors='coerce').fillna(0)
-    # Filtramos filas vacías que puedan venir de la hoja
     df = df.dropna(subset=['concepto']) 
 
 st.title("Control de Gastos e Ingresos 💰")
 
-# --- 2. SECCIÓN DE BALANCE ---
+# --- 2. CÁLCULOS LOGICOS ---
 if not df.empty:
     total_ingresos = df[df['tipo'] == 'Ingreso']['monto'].sum()
     total_gastos = df[df['tipo'] == 'Gasto']['monto'].sum()
-    total_deudas = df[df['tipo'] == 'Deuda']['monto'].sum()
-    #pagos de deudas a cuenta:
+    
+    # Cálculo de Deudas por Concepto
+    # 1. Agrupamos todas las deudas originales
+    deudas_originales = df[df['tipo'] == 'Deuda'].groupby('concepto')['monto'].sum().reset_index()
+    deudas_originales.columns = ['concepto', 'monto_inicial']
+    
+    # 2. Agrupamos todos los pagos realizados
+    pagos_realizados = df[df['tipo'] == 'Pago Deuda'].groupby('concepto')['monto'].sum().reset_index()
+    pagos_realizados.columns = ['concepto', 'pagado']
+    
+    # 3. Unimos ambas tablas para calcular lo pendiente
+    resumen_deudas = pd.merge(deudas_originales, pagos_realizados, on='concepto', how='left').fillna(0)
+    resumen_deudas['pendiente'] = resumen_deudas['monto_inicial'] - resumen_deudas['pagado']
+    
+    # Totales globales para las métricas
+    total_deudas_pendientes = resumen_deudas['pendiente'].sum()
     pagos_deudas_total = df[df['tipo'] == 'Pago Deuda']['monto'].sum()
+    
     balance_neto = total_ingresos - (total_gastos + pagos_deudas_total)
-    balance_deudas = total_deudas - pagos_deudas_total
+
+    # --- SECCIÓN DE MÉTRICAS ---
     st.subheader("Resumen:")
     col_m1, col_m2, col_m3, col_m4 = st.columns(4)
     
@@ -36,9 +50,8 @@ if not df.empty:
     
     color_balance = "green" if balance_neto >= 0 else "red"
     col_m3.metric("Balance Neto", f"{balance_neto:,.2f} €", delta=f"{balance_neto:,.2f} €")
-    col_m4.metric("Total Deudas", f"{balance_deudas:,.2f} €")
-    
-    
+    col_m4.metric("Deuda Pendiente", f"{total_deudas_pendientes:,.2f} €", delta="Por pagar", delta_color="off")
+
     st.markdown(f"""
         <div style="background-color: rgba(200, 200, 200, 0.1); padding: 20px; border-radius: 10px; border-left: 10px solid {color_balance};">
             <h3 style="margin:0;">Estado Actual:</h3>
@@ -60,21 +73,41 @@ with c_der:
     df_gas = df[df["tipo"] == "Gasto"].sort_values("fecha", ascending=False)
     st.dataframe(df_gas[["fecha", "concepto", "monto"]], use_container_width=True, hide_index=True)
 
-with st.expander("📄 Ver Deudas"):
-    df_deudas = df[df["tipo"] == "Deuda"].sort_values("fecha", ascending=False)
-    st.dataframe(df_deudas[["fecha", "concepto", "monto"]], use_container_width=True, hide_index=True)
+# TABLA DE DEUDAS INTELIGENTE
+with st.expander("📄 Estado de Deudas (Pendientes)"):
+    if not df.empty:
+        # Mostramos la tabla calculada que indica lo que queda por pagar
+        st.dataframe(
+            resumen_deudas[resumen_deudas['pendiente'] > 0], 
+            column_config={
+                "concepto": "Nombre de la Deuda",
+                "monto_inicial": st.column_config.NumberColumn("Total Inicial", format="%.2f €"),
+                "pagado": st.column_config.NumberColumn("Ya Pagado", format="%.2f €"),
+                "pendiente": st.column_config.NumberColumn("Queda por Pagar", format="%.2f €"),
+            },
+            use_container_width=True, 
+            hide_index=True
+        )
 
-with st.expander("📄 Ver Pagos de Deudas"):
+with st.expander("📄 Historial de Pagos"):
     df_pagos_deudas = df[df["tipo"] == "Pago Deuda"].sort_values("fecha", ascending=False)
     st.dataframe(df_pagos_deudas[["fecha", "concepto", "monto"]], use_container_width=True, hide_index=True)
 
-# --- 4. FORMULARIO DE ENTRADA ---
+# --- 4. FORMULARIO DE ENTRADA MEJORADO ---
 st.divider()
 with st.expander("➕ Añadir Movimiento"):
     with st.form("form_add", clear_on_submit=True):
         col1, col2, col3 = st.columns(3)
         tipo = col1.selectbox("Tipo", ["Ingreso", "Gasto", "Deuda", "Pago Deuda"])
-        concepto = col2.text_input("Concepto")
+        
+        # Lógica para facilitar el pago de deudas existentes
+        nombres_deudas = deudas_originales['concepto'].tolist() if not df.empty else []
+        
+        if tipo == "Pago Deuda" and nombres_deudas:
+            concepto = col2.selectbox("Seleccionar Deuda a Pagar", nombres_deudas)
+        else:
+            concepto = col2.text_input("Concepto")
+            
         monto = col3.number_input("Euros", min_value=0.0, step=0.01)
         
         if st.form_submit_button("Guardar"):
@@ -97,13 +130,11 @@ with st.expander("➕ Añadir Movimiento"):
 # --- 5. BORRADO SEGURO ---
 if not df.empty:
     with st.expander("🗑️ Eliminar un registro"):
-        # Creamos las opciones solo con filas válidas
-        opciones = df.apply(lambda x: f"{int(x['id'])} | {x['fecha']} - {x['concepto']} ({x['monto']}€)", axis=1).tolist()
+        opciones = df.apply(lambda x: f"{int(x['id'])} | {x['tipo']} - {x['concepto']} ({x['monto']}€)", axis=1).tolist()
         seleccion = st.selectbox("Busca el movimiento que quieres quitar:", opciones)
         
         if st.button("Confirmar Eliminación", type="primary", use_container_width=True):
             try:
-                # Extraemos el ID solo cuando se pulsa el botón
                 id_a_borrar = int(seleccion.split(" | ")[0])
                 df_final = df[df['id'] != id_a_borrar]
                 conn.update(data=df_final)
