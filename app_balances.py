@@ -27,7 +27,7 @@ if not df.empty:
     deudas_orig = df[df['tipo'] == 'Deuda'].groupby('concepto')['monto'].sum().reset_index()
     pagos_deudas = df[df['tipo'] == 'Pago Deuda'].groupby('concepto')['monto'].sum().reset_index()
     resumen_deudas = pd.merge(deudas_orig, pagos_deudas, on='concepto', how='left').fillna(0)
-    resumen_deudas['pendiente'] = resumen_deudas['monto']_x - resumen_deudas['monto']_y
+    resumen_deudas['pendiente'] = resumen_deudas['monto'] - resumen_deudas['monto']_y
     total_deudas_pendientes = resumen_deudas['pendiente'].sum()
     pagos_deudas_total = df[df['tipo'] == 'Pago Deuda']['monto'].sum()
 
@@ -35,7 +35,7 @@ if not df.empty:
     prestamos_dados = df[df['tipo'] == 'Prestado'].groupby('concepto')['monto'].sum().reset_index()
     cobros_recibidos = df[df['tipo'] == 'Cobro Préstamo'].groupby('concepto')['monto'].sum().reset_index()
     resumen_prestamos = pd.merge(prestamos_dados, cobros_recibidos, on='concepto', how='left').fillna(0)
-    resumen_prestamos['por_cobrar'] = resumen_prestamos['monto']_x - resumen_prestamos['monto']_y
+    resumen_prestamos['por_cobrar'] = resumen_prestamos['monto'] - resumen_prestamos['monto']_y
     total_por_cobrar = resumen_prestamos['por_cobrar'].sum()
     
     prestado_total = df[df['tipo'] == 'Prestado']['monto'].sum()
