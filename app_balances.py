@@ -3,11 +3,11 @@ from streamlit_gsheets import GSheetsConnection
 import pandas as pd
 from datetime import datetime
 
-st.set_page_config(page_title="Finanzas Reales", layout="wide")
+st.set_page_config(page_title="Control Financiero Pro", layout="wide")
 
 conn = st.connection("gsheets", type=GSheetsConnection)
 
-# 1. Carga y Limpieza Crítica de Datos
+# 1. Carga y Limpieza de Datos
 df = conn.read(ttl=0)
 
 if not df.empty:
@@ -15,103 +15,123 @@ if not df.empty:
     df['monto'] = pd.to_numeric(df['monto'], errors='coerce').fillna(0)
     df = df.dropna(subset=['concepto']) 
 
-st.title("Control de Gastos e Ingresos 💰")
+st.title("Gestión de Finanzas Personales")
 
-# --- 2. CÁLCULOS LOGICOS ---
+# --- 2. CÁLCULOS LÓGICOS AVANZADOS ---
 if not df.empty:
+    # A. Ingresos y Gastos Estándar
     total_ingresos = df[df['tipo'] == 'Ingreso']['monto'].sum()
     total_gastos = df[df['tipo'] == 'Gasto']['monto'].sum()
     
-    # Cálculo de Deudas por Concepto
-    # 1. Agrupamos todas las deudas originales
-    deudas_originales = df[df['tipo'] == 'Deuda'].groupby('concepto')['monto'].sum().reset_index()
-    deudas_originales.columns = ['concepto', 'monto_inicial']
-    
-    # 2. Agrupamos todos los pagos realizados
-    pagos_realizados = df[df['tipo'] == 'Pago Deuda'].groupby('concepto')['monto'].sum().reset_index()
-    pagos_realizados.columns = ['concepto', 'pagado']
-    
-    # 3. Unimos ambas tablas para calcular lo pendiente
-    resumen_deudas = pd.merge(deudas_originales, pagos_realizados, on='concepto', how='left').fillna(0)
-    resumen_deudas['pendiente'] = resumen_deudas['monto_inicial'] - resumen_deudas['pagado']
-    
-    # Totales globales para las métricas
+    # B. Lógica de Deudas (Lo que tú debes)
+    deudas_orig = df[df['tipo'] == 'Deuda'].groupby('concepto')['monto'].sum().reset_index()
+    pagos_deudas = df[df['tipo'] == 'Pago Deuda'].groupby('concepto')['monto'].sum().reset_index()
+    resumen_deudas = pd.merge(deudas_orig, pagos_deudas, on='concepto', how='left').fillna(0)
+    resumen_deudas['pendiente'] = resumen_deudas['monto']_x - resumen_deudas['monto']_y
     total_deudas_pendientes = resumen_deudas['pendiente'].sum()
     pagos_deudas_total = df[df['tipo'] == 'Pago Deuda']['monto'].sum()
-    
-    balance_neto = total_ingresos - (total_gastos + pagos_deudas_total)
 
-    # --- SECCIÓN DE MÉTRICAS ---
-    st.subheader("Resumen:")
-    col_m1, col_m2, col_m3, col_m4 = st.columns(4)
+    # C. Lógica de Préstamos (Lo que te deben a ti)
+    prestamos_dados = df[df['tipo'] == 'Prestado'].groupby('concepto')['monto'].sum().reset_index()
+    cobros_recibidos = df[df['tipo'] == 'Cobro Préstamo'].groupby('concepto')['monto'].sum().reset_index()
+    resumen_prestamos = pd.merge(prestamos_dados, cobros_recibidos, on='concepto', how='left').fillna(0)
+    resumen_prestamos['por_cobrar'] = resumen_prestamos['monto']_x - resumen_prestamos['monto']_y
+    total_por_cobrar = resumen_prestamos['por_cobrar'].sum()
     
-    col_m1.metric("Total Ingresos", f"{total_ingresos:,.2f} €")
-    col_m2.metric("Total Gastos", f"{total_gastos:,.2f} €", delta=f"-{total_gastos:,.2f} €", delta_color="inverse")
-    
-    color_balance = "green" if balance_neto >= 0 else "red"
-    col_m3.metric("Balance Neto", f"{balance_neto:,.2f} €", delta=f"{balance_neto:,.2f} €")
-    col_m4.metric("Deuda Pendiente", f"{total_deudas_pendientes:,.2f} €", delta="Por pagar", delta_color="off")
+    prestado_total = df[df['tipo'] == 'Prestado']['monto'].sum()
+    cobrado_total = df[df['tipo'] == 'Cobro Préstamo']['monto'].sum()
 
+    # D. Definición de Saldos
+    # El Saldo Disponible es el efectivo real que tienes ahora
+    saldo_disponible = total_ingresos - total_gastos - pagos_deudas_total - prestado_total + cobrado_total
+    
+    # El Patrimonio Neto incluye el efectivo + lo que te deben (pues sigue siendo tu dinero)
+    patrimonio_total = saldo_disponible + total_por_cobrar
+
+    # --- 3. SECCIÓN DE MÉTRICAS ---
+    st.subheader("Resumen de Situación")
+    m1, m2, m3, m4 = st.columns(4)
+    
+    m1.metric("Ingresos Totales", f"{total_ingresos:,.2f} €")
+    m2.metric("Gastos Totales", f"{total_gastos:,.2f} €", delta=f"-{total_gastos:,.2f} €", delta_color="inverse")
+    m3.metric("Por Cobrar (Mis Préstamos)", f"{total_por_cobrar:,.2f} €", delta="Dinero fuera")
+    m4.metric("Deuda Pendiente", f"{total_deudas_pendientes:,.2f} €", delta="Por pagar", delta_color="inverse")
+
+    # Cuadro de Saldo Actual Principal
+    color_banner = "green" if saldo_disponible >= 0 else "red"
     st.markdown(f"""
-        <div style="background-color: rgba(200, 200, 200, 0.1); padding: 20px; border-radius: 10px; border-left: 10px solid {color_balance};">
-            <h3 style="margin:0;">Estado Actual:</h3>
-            <p style="font-size: 24px; color: {color_balance}; font-weight: bold; margin:0;">{balance_neto:,.2f} €</p>
+        <div style="background-color: rgba(200, 200, 200, 0.1); padding: 25px; border-radius: 15px; border-left: 10px solid {color_banner}; margin-bottom: 20px;">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <div>
+                    <h4 style="margin:0; opacity: 0.8;">SALDO DISPONIBLE (EFECTIVO)</h4>
+                    <p style="font-size: 32px; color: {color_banner}; font-weight: bold; margin:0;">{saldo_disponible:,.2f} €</p>
+                </div>
+                <div style="text-align: right;">
+                    <h4 style="margin:0; opacity: 0.8;">PATRIMONIO TOTAL</h4>
+                    <p style="font-size: 24px; color: #555; font-weight: bold; margin:0;">{patrimonio_total:,.2f} €</p>
+                    <small>Disponible + Préstamos realizados</small>
+                </div>
+            </div>
         </div>
     """, unsafe_allow_html=True)
 
-# --- 3. VISUALIZACIÓN DE TABLAS ---
+# --- 4. VISUALIZACIÓN Y TABLAS ---
 st.divider()
-c_izq, c_der = st.columns(2)
+col_tab1, col_tab2 = st.columns(2)
 
-with c_izq:
-    st.subheader("Ingresos")
-    df_ing = df[df["tipo"] == "Ingreso"].sort_values("fecha", ascending=False)
-    st.dataframe(df_ing[["fecha", "concepto", "monto"]], use_container_width=True, hide_index=True)
+with col_tab1:
+    st.subheader("📥 Ingresos y Cobros")
+    df_inc = df[df["tipo"].isin(["Ingreso", "Cobro Préstamo"])].sort_values("fecha", ascending=False)
+    st.dataframe(df_inc[["fecha", "tipo", "concepto", "monto"]], use_container_width=True, hide_index=True)
 
-with c_der:
-    st.subheader("Gastos")
-    df_gas = df[df["tipo"] == "Gasto"].sort_values("fecha", ascending=False)
-    st.dataframe(df_gas[["fecha", "concepto", "monto"]], use_container_width=True, hide_index=True)
+with col_tab2:
+    st.subheader("📤 Gastos y Pagos")
+    df_exp = df[df["tipo"].isin(["Gasto", "Pago Deuda", "Prestado"])].sort_values("fecha", ascending=False)
+    st.dataframe(df_exp[["fecha", "tipo", "concepto", "monto"]], use_container_width=True, hide_index=True)
 
-# TABLA DE DEUDAS INTELIGENTE
-with st.expander("📄 Estado de Deudas (Pendientes)"):
-    if not df.empty:
-        # Mostramos la tabla calculada que indica lo que queda por pagar
-        st.dataframe(
-            resumen_deudas[resumen_deudas['pendiente'] > 0], 
-            column_config={
-                "concepto": "Nombre de la Deuda",
-                "monto_inicial": st.column_config.NumberColumn("Total Inicial", format="%.2f €"),
-                "pagado": st.column_config.NumberColumn("Ya Pagado", format="%.2f €"),
-                "pendiente": st.column_config.NumberColumn("Queda por Pagar", format="%.2f €"),
-            },
-            use_container_width=True, 
-            hide_index=True
-        )
+# SECCIONES DE CONTROL DE DEUDAS Y PRÉSTAMOS
+st.write("### 🔍 Control de Saldos Pendientes")
+c_p1, c_p2 = st.columns(2)
 
-with st.expander("📄 Historial de Pagos"):
-    df_pagos_deudas = df[df["tipo"] == "Pago Deuda"].sort_values("fecha", ascending=False)
-    st.dataframe(df_pagos_deudas[["fecha", "concepto", "monto"]], use_container_width=True, hide_index=True)
+with c_p1:
+    with st.expander("Deudas"):
+        if not resumen_deudas.empty:
+            st.dataframe(
+                resumen_deudas[resumen_deudas['pendiente'] > 0],
+                column_config={"concepto": "Acreedor", "pendiente": st.column_config.NumberColumn("Queda por Pagar", format="%.2f €")},
+                use_container_width=True, hide_index=True
+            )
 
-# --- 4. FORMULARIO DE ENTRADA MEJORADO ---
+with c_p2:
+    with st.expander("Préstamos Otorgados"):
+        if not resumen_prestamos.empty:
+            st.dataframe(
+                resumen_prestamos[resumen_prestamos['por_cobrar'] > 0],
+                column_config={"concepto": "Persona/Concepto", "por_cobrar": st.column_config.NumberColumn("Me debe", format="%.2f €")},
+                use_container_width=True, hide_index=True
+            )
+
+# --- 5. FORMULARIO DE ENTRADA MEJORADO ---
 st.divider()
-with st.expander("➕ Añadir Movimiento"):
+with st.expander("Añadir Nuevo Movimiento"):
     with st.form("form_add", clear_on_submit=True):
-        col1, col2, col3 = st.columns(3)
-        tipo = col1.selectbox("Tipo", ["Ingreso", "Gasto", "Deuda", "Pago Deuda"])
+        f1, f2, f3 = st.columns([1, 2, 1])
         
-        # Lógica para facilitar el pago de deudas existentes
-        nombres_deudas = deudas_originales['concepto'].tolist() if not df.empty else []
+        tipo = f1.selectbox("Tipo de Operación", 
+                           ["Ingreso", "Gasto", "Deuda", "Pago Deuda", "Prestado", "Cobro Préstamo"])
         
-        if tipo == "Pago Deuda" and nombres_deudas:
-            concepto = col2.selectbox("Seleccionar Deuda a Pagar", nombres_deudas)
+        # Lógica de autocompletado para facilitar la vida
+        if tipo == "Pago Deuda" and not resumen_deudas.empty:
+            concepto = f2.selectbox("¿Qué deuda pagas?", resumen_deudas['concepto'].tolist())
+        elif tipo == "Cobro Préstamo" and not resumen_prestamos.empty:
+            concepto = f2.selectbox("¿Quién te devuelve dinero?", resumen_prestamos['concepto'].tolist())
         else:
-            concepto = col2.text_input("Concepto")
+            concepto = f2.text_input("Concepto o Nombre de Persona")
             
-        monto = col3.number_input("Euros", min_value=0.0, step=0.01)
+        monto = f3.number_input("Cantidad (€)", min_value=0.0, step=0.01)
         
-        if st.form_submit_button("Guardar"):
-            if concepto:
+        if st.form_submit_button("Registrar Movimiento"):
+            if concepto and monto > 0:
                 nuevo_id = int(df['id'].max() + 1) if not df.empty else 1
                 nueva_fila = pd.DataFrame([{
                     "id": nuevo_id,
@@ -122,23 +142,20 @@ with st.expander("➕ Añadir Movimiento"):
                 }])
                 df_up = pd.concat([df, nueva_fila], ignore_index=True)
                 conn.update(data=df_up)
-                st.success("¡Guardado correctamente!")
+                st.success("¡Movimiento registrado con éxito!")
                 st.rerun()
             else:
-                st.error("Por favor, introduce un concepto.")
+                st.error("Revisa que el concepto no esté vacío y el monto sea mayor a 0.")
 
-# --- 5. BORRADO SEGURO ---
-if not df.empty:
-    with st.expander("🗑️ Eliminar un registro"):
-        opciones = df.apply(lambda x: f"{int(x['id'])} | {x['tipo']} - {x['concepto']} ({x['monto']}€)", axis=1).tolist()
-        seleccion = st.selectbox("Busca el movimiento que quieres quitar:", opciones)
+# --- 6. BORRADO DE REGISTROS ---
+with st.expander("🗑️ Gestionar / Eliminar historial"):
+    if not df.empty:
+        opciones = df.apply(lambda x: f"{int(x['id'])} | {x['fecha']} | {x['tipo']} - {x['concepto']} ({x['monto']}€)", axis=1).tolist()
+        seleccion = st.selectbox("Selecciona registro a eliminar:", opciones)
         
-        if st.button("Confirmar Eliminación", type="primary", use_container_width=True):
-            try:
-                id_a_borrar = int(seleccion.split(" | ")[0])
-                df_final = df[df['id'] != id_a_borrar]
-                conn.update(data=df_final)
-                st.success(f"Registro {id_a_borrar} eliminado.")
-                st.rerun()
-            except Exception as e:
-                st.error(f"No se pudo eliminar: {e}")
+        if st.button("Confirmar Borrado", type="primary"):
+            id_a_borrar = int(seleccion.split(" | ")[0])
+            df_final = df[df['id'] != id_a_borrar]
+            conn.update(data=df_final)
+            st.warning(f"Registro {id_a_borrar} eliminado.")
+            st.rerun()
