@@ -15,8 +15,9 @@ if not df.empty:
     df['monto'] = pd.to_numeric(df['monto'], errors='coerce').fillna(0)
     df = df.dropna(subset=['concepto']) 
 
-st.title("Gestión de Finanzas Personales")
+st.title("Gestión de Finanzas Personales 💰")
 
+# --- 2. CÁLCULOS LÓGICOS AVANZADOS ---
 # --- 2. CÁLCULOS LÓGICOS AVANZADOS ---
 if not df.empty:
     # A. Ingresos y Gastos Estándar
@@ -25,29 +26,40 @@ if not df.empty:
     
     # B. Lógica de Deudas (Lo que tú debes)
     deudas_orig = df[df['tipo'] == 'Deuda'].groupby('concepto')['monto'].sum().reset_index()
+    deudas_orig.columns = ['concepto', 'monto_total_deuda'] # Renombramos para claridad
+    
     pagos_deudas = df[df['tipo'] == 'Pago Deuda'].groupby('concepto')['monto'].sum().reset_index()
+    pagos_deudas.columns = ['concepto', 'monto_pagado'] # Renombramos para claridad
+    
     resumen_deudas = pd.merge(deudas_orig, pagos_deudas, on='concepto', how='left').fillna(0)
-    resumen_deudas['pendiente'] = resumen_deudas['monto'] - resumen_deudas['monto']_y
+    # Ahora la resta es mucho más clara:
+    resumen_deudas['pendiente'] = resumen_deudas['monto_total_deuda'] - resumen_deudas['monto_pagado']
     total_deudas_pendientes = resumen_deudas['pendiente'].sum()
     pagos_deudas_total = df[df['tipo'] == 'Pago Deuda']['monto'].sum()
 
     # C. Lógica de Préstamos (Lo que te deben a ti)
     prestamos_dados = df[df['tipo'] == 'Prestado'].groupby('concepto')['monto'].sum().reset_index()
+    prestamos_dados.columns = ['concepto', 'monto_prestado']
+    
     cobros_recibidos = df[df['tipo'] == 'Cobro Préstamo'].groupby('concepto')['monto'].sum().reset_index()
+    cobros_recibidos.columns = ['concepto', 'monto_recuperado']
+    
     resumen_prestamos = pd.merge(prestamos_dados, cobros_recibidos, on='concepto', how='left').fillna(0)
-    resumen_prestamos['por_cobrar'] = resumen_prestamos['monto'] - resumen_prestamos['monto']_y
+    # Calculamos lo que aún te deben:
+    resumen_prestamos['por_cobrar'] = resumen_prestamos['monto_prestado'] - resumen_prestamos['monto_recuperado']
     total_por_cobrar = resumen_prestamos['por_cobrar'].sum()
     
     prestado_total = df[df['tipo'] == 'Prestado']['monto'].sum()
     cobrado_total = df[df['tipo'] == 'Cobro Préstamo']['monto'].sum()
 
     # D. Definición de Saldos
-    # El Saldo Disponible es el efectivo real que tienes ahora
+    # Saldo disponible = Lo que entró - Lo que salió (gastos, pagos de deudas y préstamos que hiciste) + Lo que recuperaste
     saldo_disponible = total_ingresos - total_gastos - pagos_deudas_total - prestado_total + cobrado_total
     
-    # El Patrimonio Neto incluye el efectivo + lo que te deben (pues sigue siendo tu dinero)
+    # Patrimonio = Tu efectivo + Lo que te deben (préstamos pendientes)
     patrimonio_total = saldo_disponible + total_por_cobrar
 
+    
     # --- 3. SECCIÓN DE MÉTRICAS ---
     st.subheader("Resumen de Situación")
     m1, m2, m3, m4 = st.columns(4)
