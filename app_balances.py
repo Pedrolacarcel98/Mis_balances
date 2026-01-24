@@ -97,27 +97,63 @@ st.divider()
 st.subheader("Gestión de Movimientos")
 tab_add, tab_edit, tab_delete = st.tabs(["➕ Añadir", "✏️ Editar", "🗑️ Eliminar"])
 
+
 # TAB AÑADIR
 with tab_add:
-    with st.form("form_add", clear_on_submit=True):
-        f1, f2, f3 = st.columns([1, 2, 1])
-        tipo = f1.selectbox("Tipo", ["Ingreso", "Gasto", "Deuda", "Pago Deuda", "Prestado", "Cobro Préstamo"], key="add_tipo")
-        
-        if tipo == "Pago Deuda" and not resumen_deudas.empty:
-            concepto = f2.selectbox("¿Qué deuda pagas?", resumen_deudas['concepto'].tolist())
-        elif tipo == "Cobro Préstamo" and not resumen_prestamos.empty:
-            concepto = f2.selectbox("¿Quién devuelve?", resumen_prestamos['concepto'].tolist())
-        else:
-            concepto = f2.text_input("Concepto / Persona")
-            
-        monto = f3.number_input("Euros", min_value=0.0, step=0.01)
-        if st.form_submit_button("Guardar Nuevo"):
-            nuevo_id = int(df['id'].max() + 1) if not df.empty else 1
-            nueva_fila = pd.DataFrame([{"id": nuevo_id, "fecha": datetime.now().strftime("%Y-%m-%d"), "tipo": tipo, "concepto": concepto, "monto": monto}])
-            conn.update(data=pd.concat([df, nueva_fila], ignore_index=True))
-            st.success("Guardado")
-            st.rerun()
+    # 1. Sacamos el "Tipo" fuera del formulario para que la página se refresque al cambiarlo
+    f1, f2, f3 = st.columns([1, 2, 1])
+    tipo = f1.selectbox("Tipo de Movimiento", ["Ingreso", "Gasto", "Deuda", "Pago Deuda", "Prestado", "Cobro Préstamo"], key="add_tipo_new")
 
+    # 2. Creamos el formulario solo para el resto de campos
+    with st.form("form_add_movimiento", clear_on_submit=True):
+        # Lógica dinámica para el campo concepto
+        if tipo == "Pago Deuda":
+            # Filtramos solo deudas que tengan saldo pendiente > 0
+            lista_deudas = resumen_deudas[resumen_deudas['pendiente'] > 0]['concepto'].tolist()
+            if lista_deudas:
+                concepto = st.selectbox("Selecciona la Deuda a pagar", lista_deudas)
+            else:
+                st.warning("No tienes deudas pendientes de pago.")
+                concepto = None
+        
+        elif tipo == "Cobro Préstamo":
+            # Filtramos solo préstamos que tengan saldo por cobrar > 0
+            lista_prestamos = resumen_prestamos[resumen_prestamos['por_cobrar'] > 0]['concepto'].tolist()
+            if lista_prestamos:
+                concepto = st.selectbox("¿Quién te está devolviendo dinero?", lista_prestamos)
+            else:
+                st.warning("No tienes préstamos pendientes de cobro.")
+                concepto = None
+        else:
+            # Para Ingresos, Gastos, Deuda o Prestado, usamos texto libre
+            concepto = st.text_input("Concepto / Persona")
+
+        monto = st.number_input("Cantidad (€)", min_value=0.0, step=0.01)
+        
+        # Botón de envío
+        submit = st.form_submit_button("Guardar Movimiento")
+        
+        if submit:
+            if concepto and monto > 0:
+                nuevo_id = int(df['id'].max() + 1) if not df.empty else 1
+                nueva_fila = pd.DataFrame([{
+                    "id": nuevo_id,
+                    "fecha": datetime.now().strftime("%Y-%m-%d"),
+                    "tipo": tipo,
+                    "concepto": concepto,
+                    "monto": monto
+                }])
+                
+                # Actualización en GSheets
+                df_actualizado = pd.concat([df, nueva_fila], ignore_index=True)
+                conn.update(data=df_actualizado)
+                
+                st.success(f"✅ {tipo} registrado: {concepto} por {monto:,.2f} €")
+                st.rerun()
+            elif not concepto:
+                st.error("Error: El concepto no puede estar vacío.")
+            else:
+                st.error("Error: El monto debe ser mayor a 0.")
 # TAB EDITAR
 with tab_edit:
     if not df.empty:
