@@ -3,7 +3,44 @@ from streamlit_gsheets import GSheetsConnection
 import pandas as pd
 from datetime import datetime
 
+# CSS Minimalista: Blanco, Negro y Rojo
+st.markdown("""
+    <style>
+    /* Fondo y Texto General */
+    .main { background-color: #ffffff !important; }
+    h1, h2, h3, h4, p, span, label { color: #000000 !important; font-family: 'Segoe UI', sans-serif; }
+    
+    /* Métricas con acento rojo */
+    div[data-testid="stMetric"] {
+        background-color: #ffffff;
+        border: 1px solid #f0f0f0;
+        border-left: 5px solid #ff4b4b;
+        padding: 15px;
+        border-radius: 5px;
+        box-shadow: 2px 2px 10px rgba(0,0,0,0.05);
+    }
+    
+    /* Botones Negros con Hover Rojo */
+    .stButton>button {
+        background-color: #000000 !important;
+        color: #ffffff !important;
+        border: none;
+        border-radius: 4px;
+        transition: 0.3s;
+    }
+    .stButton>button:hover {
+        background-color: #ff4b4b !important;
+        transform: scale(1.02);
+    }
 
+    /* Tabs */
+    button[data-baseweb="tab"] { color: #888888 !important; }
+    button[data-baseweb="tab"][aria-selected="true"] { color: #ff4b4b !important; border-bottom-color: #ff4b4b !important; }
+    
+    /* Divisores */
+    hr { border-top: 1px solid #eeeeee; }
+    </style>
+    """, unsafe_allow_html=True)
 # Función sencilla de clasificación de conceptos usando palabras clave
 def clasificador_ia_sencilla(concepto):
     concepto = concepto.lower()
