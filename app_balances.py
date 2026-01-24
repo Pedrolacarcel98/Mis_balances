@@ -127,7 +127,7 @@ if not df.empty:
 
 # --- 4. VISUALIZACIÓN Y TABLAS ---
 st.divider()
-col_tab1, col_tab2, col_tab3 = st.columns(3)
+col_tab1, col_tab2, col_tab3, col_tab4 = st.columns(4)
 with col_tab1:
     st.subheader("📥 Ingresos y Cobros")
     df_inc = df[df["tipo"].isin(["Ingreso", "Cobro Préstamo"])].sort_values("fecha", ascending=False)
@@ -150,6 +150,18 @@ with col_tab3:
         st.dataframe(resumen_prestamos[resumen_prestamos['por_cobrar'] > 0][['concepto', 'monto_prestado', 'monto_recuperado', 'por_cobrar']], use_container_width=True, hide_index=True)
     else:
         st.info("No hay préstamos registrados")
+
+#VISUALIZACIÓN:
+with col_tab4:
+    st.subheader("📊 Gastos por Categoría (IA)")
+    df_gastos = df[df['tipo'] == 'Gasto']
+    if not df_gastos.empty:
+        # Agrupamos por la categoría que ha creado nuestra IA
+        resumen_cat = df_gastos.groupby('categoria')['monto'].sum().sort_values(ascending=False)
+        st.bar_chart(resumen_cat) # Un gráfico de barras sencillo y limpio
+    else:
+        st.info("Aún no hay gastos para categorizar.")
+        
 # --- 5. GESTIÓN DE DATOS (AÑADIR, EDITAR, BORRAR) ---
 st.divider()
 st.subheader("Gestión de Movimientos")
