@@ -3,6 +3,55 @@ from streamlit_gsheets import GSheetsConnection
 import pandas as pd
 from datetime import datetime
 
+
+# Función sencilla de clasificación de conceptos usando palabras clave
+def clasificador_ia_sencilla(concepto):
+    concepto = concepto.lower()
+    
+    # Diccionario expandido de "neuronas"
+    categorias = {
+        "Transporte": [
+            "taxi", "uber", "cabify", "bus", "metro", "gasolina", "gasolinera", "parking", "estacionamiento", 
+            "renfe", "vuelo", "avión", "tren", "peaje", "taller", "reparacion", "neumaticos", "itv", "diésel", "repsol", "cepsa"
+        ],
+        "Alimentación": [
+            "mercadona", "carrefour", "lidl", "aldi", "dia", "alcampo", "eroski", "supermercado", "hipercor",
+            "comida", "restaurante", "bar", "pizzería", "glovo", "just eat", "ubereats", "café", "desayuno", 
+            "cena", "burger king", "mcdonalds", "tapa", "panaderia", "carniceria"
+        ],
+        "Hogar": [
+            "alquiler", "hipoteca", "luz", "agua", "internet", "comunidad", "ikea", "leroy merlin", 
+            "ferretería", "fontanero", "electricista", "mueble", "deco", "limpieza", "detergente", 
+            "gas", "calefacción", "endesa", "iberdrola"
+        ],
+        "Ocio y Viajes": [
+            "cine", "netflix", "spotify", "gym", "gimnasio", "concierto", "teatro", "videojuegos", 
+            "hotel", "airbnb", "booking", "viaje", "discoteca", "copa", "cerveza", "hbo", "disney+", 
+            "playstation", "xbox", "steam"
+        ],
+        "Salud y Belleza": [
+            "farmacia", "médico", "dentista", "hospital", "seguro", "psicologo", "fisio", 
+            "peluquería", "barbería", "cosméticos", "maquillaje", "perfume", "crema"
+        ],
+        "Suscripciones y Digital": [
+            "amazon", "prime", "apple", "icloud", "adobe", "google", "cloud", "hosting", 
+            "software", "patreon", "chatgpt", "midjourney"
+        ],
+        "Ropa y Complementos": [
+            "zara", "h&m", "nike", "adidas", "mango", "primark", "ropa", "zapatos", 
+            "bolso", "moda", "tienda", "centro comercial"
+        ],
+        "Educación": [
+            "curso", "academia", "universidad", "libro", "formacion", "master", "clases", "escuela"
+        ]
+    }
+
+    for categoria, palabras in categorias.items():
+        if any(palabra in concepto for palabra in palabras):
+            return categoria
+            
+    return "Varios"
+# --- 0. CONFIGURACIONES INICIALES ---
 st.set_page_config(page_title="Control Financiero Pro", layout="wide")
 
 conn = st.connection("gsheets", type=GSheetsConnection)
@@ -13,10 +62,19 @@ df = conn.read(ttl=0)
 if not df.empty:
     df['id'] = pd.to_numeric(df['id'], errors='coerce').fillna(0).astype(int)
     df['monto'] = pd.to_numeric(df['monto'], errors='coerce').fillna(0)
+    # Convertimos la fecha a objeto fecha real para que los gráficos funcionen bien
+    df['fecha'] = pd.to_datetime(df['fecha'], errors='coerce')
     df = df.dropna(subset=['concepto']) 
 
-st.title("Gestión de Finanzas Personales 💰")
-
+    # --- LA MAGIA PARA TUS DATOS ANTIGUOS ---
+    # Esta línea recorre TODO el Excel y aplica la IA a cada fila
+    df['categoria'] = df.apply(
+        lambda row: clasificador_ia_sencilla(row['concepto']) if row['tipo'] == 'Gasto' else (
+            "Deudas" if "Deuda" in row['tipo'] else (
+                "Préstamos" if "Préstamo" in row['tipo'] or row['tipo'] == "Prestado" else "Ingresos"
+            )
+        ), axis=1
+    )
 # --- 2. CÁLCULOS LÓGICOS AVANZADOS ---
 if not df.empty:
     # A. Ingresos y Gastos Estándar
@@ -100,60 +158,68 @@ tab_add, tab_edit, tab_delete = st.tabs(["➕ Añadir", "✏️ Editar", "🗑�
 
 # TAB AÑADIR
 with tab_add:
-    # 1. Sacamos el "Tipo" fuera del formulario para que la página se refresque al cambiarlo
-    f1, f2, f3 = st.columns([1, 2, 1])
-    tipo = f1.selectbox("Tipo de Movimiento", ["Ingreso", "Gasto", "Deuda", "Pago Deuda", "Prestado", "Cobro Préstamo"], key="add_tipo_new")
+    # IMPORTANTE: Sacamos el selector de tipo fuera del form para que la IA responda en tiempo real
+    col_t1, col_t2 = st.columns([1, 3])
+    with col_t1:
+        tipo = st.selectbox("Tipo de Movimiento", 
+                            ["Ingreso", "Gasto", "Deuda", "Pago Deuda", "Prestado", "Cobro Préstamo"], 
+                            key="add_tipo_ia")
 
-    # 2. Creamos el formulario solo para el resto de campos
-    with st.form("form_add_movimiento", clear_on_submit=True):
-        # Lógica dinámica para el campo concepto
+    with st.form("form_add_final", clear_on_submit=True):
+        f_c1, f_c2 = st.columns([2, 1])
+        
+        # Lógica dinámica de conceptos
         if tipo == "Pago Deuda":
-            # Filtramos solo deudas que tengan saldo pendiente > 0
-            lista_deudas = resumen_deudas[resumen_deudas['pendiente'] > 0]['concepto'].tolist()
-            if lista_deudas:
-                concepto = st.selectbox("Selecciona la Deuda a pagar", lista_deudas)
-            else:
-                st.warning("No tienes deudas pendientes de pago.")
-                concepto = None
-        
+            lista_d = resumen_deudas[resumen_deudas['pendiente'] > 0]['concepto'].tolist()
+            concepto = f_c1.selectbox("¿Qué deuda pagas?", lista_d) if lista_d else f_c1.text_input("Concepto (No hay deudas pendientes)")
         elif tipo == "Cobro Préstamo":
-            # Filtramos solo préstamos que tengan saldo por cobrar > 0
-            lista_prestamos = resumen_prestamos[resumen_prestamos['por_cobrar'] > 0]['concepto'].tolist()
-            if lista_prestamos:
-                concepto = st.selectbox("¿Quién te está devolviendo dinero?", lista_prestamos)
-            else:
-                st.warning("No tienes préstamos pendientes de cobro.")
-                concepto = None
+            lista_p = resumen_prestamos[resumen_prestamos['por_cobrar'] > 0]['concepto'].tolist()
+            concepto = f_c1.selectbox("¿Quién te devuelve dinero?", lista_p) if lista_p else f_c1.text_input("Concepto (No hay préstamos pendientes)")
         else:
-            # Para Ingresos, Gastos, Deuda o Prestado, usamos texto libre
-            concepto = st.text_input("Concepto / Persona")
+            concepto = f_c1.text_input("Concepto / Persona", placeholder="Ej: Taxi al aeropuerto")
+            
+            # --- FEEDBACK DE LA IA EN TIEMPO REAL ---
+            if tipo == "Gasto" and concepto:
+                cat_ia = clasificador_ia_sencilla(concepto)
+                if cat_ia != "Varios":
+                    st.info(f"🤖 **IA detecta:** {cat_ia}")
+                else:
+                    st.caption("🤖 IA: Sin categoría clara (irá a 'Varios')")
 
-        monto = st.number_input("Cantidad (€)", min_value=0.0, step=0.01)
+        monto = f_c2.number_input("Cantidad (€)", min_value=0.0, step=0.01)
         
-        # Botón de envío
-        submit = st.form_submit_button("Guardar Movimiento")
-        
-        if submit:
+        # BOTÓN DE GUARDADO
+        if st.form_submit_button("Guardar Registro", use_container_width=True):
             if concepto and monto > 0:
+                # 1. Determinar Categoría final
+                if tipo == "Gasto":
+                    categoria_final = clasificador_ia_sencilla(concepto)
+                elif tipo in ["Deuda", "Pago Deuda"]:
+                    categoria_final = "Deudas"
+                elif tipo in ["Prestado", "Cobro Préstamo"]:
+                    categoria_final = "Préstamos"
+                else:
+                    categoria_final = "Ingresos"
+
+                # 2. Crear nueva fila (Asegúrate de que tu Excel tenga estas columnas)
                 nuevo_id = int(df['id'].max() + 1) if not df.empty else 1
                 nueva_fila = pd.DataFrame([{
                     "id": nuevo_id,
                     "fecha": datetime.now().strftime("%Y-%m-%d"),
                     "tipo": tipo,
                     "concepto": concepto,
-                    "monto": monto
+                    "monto": monto,
+                    "categoria": categoria_final  # <-- NUEVA COLUMNA PARA LA IA
                 }])
+
+                # 3. Actualizar Google Sheets
+                df_up = pd.concat([df, nueva_fila], ignore_index=True)
+                conn.update(data=df_up)
                 
-                # Actualización en GSheets
-                df_actualizado = pd.concat([df, nueva_fila], ignore_index=True)
-                conn.update(data=df_actualizado)
-                
-                st.success(f"✅ {tipo} registrado: {concepto} por {monto:,.2f} €")
+                st.success(f"✅ Registrado como {categoria_final}")
                 st.rerun()
-            elif not concepto:
-                st.error("Error: El concepto no puede estar vacío.")
             else:
-                st.error("Error: El monto debe ser mayor a 0.")
+                st.error("Por favor, rellena el concepto y un monto mayor a 0.")
 # TAB EDITAR
 with tab_edit:
     if not df.empty:
