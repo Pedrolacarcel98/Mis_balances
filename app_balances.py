@@ -3,62 +3,7 @@ from streamlit_gsheets import GSheetsConnection
 import pandas as pd
 from datetime import datetime
 
-# CSS Minimalista: Blanco, Negro y Rojo
-# --- DISEÑO CSS: TOTAL WHITE & RED ACCENTS ---
-st.markdown("""
-    <style>
-    /* 1. FONDO TOTAL BLANCO (Cuerpo, cabecera y barras) */
-    [data-testid="stAppViewContainer"], [data-testid="stHeader"], [data-testid="stToolbar"], .main {
-        background-color: #ffffff !important;
-    }
 
-    /* 2. TEXTO EN NEGRO (Forzado en toda la app) */
-    h1, h2, h3, h4, h5, h6, p, label, span, div {
-        color: #000000 !important;
-    }
-
-    /* 3. MÉTRICAS (Las tarjetitas blancas con borde rojo) */
-    div[data-testid="stMetric"] {
-        background-color: #ffffff !important;
-        border: 1px solid #eeeeee !important;
-        border-left: 5px solid #ff0000 !important; /* Detalle Rojo */
-        border-radius: 8px !important;
-        box-shadow: 2px 4px 8px rgba(0,0,0,0.05) !important;
-    }
-    /* Forzar color de los números de las métricas */
-    div[data-testid="stMetricValue"] > div {
-        color: #000000 !important;
-    }
-
-    /* 4. BANNER DE SALDO (El de abajo que se veía mal) */
-    .custom-banner {
-        background-color: #f8f9fa !important; /* Gris muy clarito */
-        padding: 25px;
-        border-radius: 12px;
-        border-left: 10px solid #ff0000;
-        margin-bottom: 20px;
-        border: 1px solid #eeeeee;
-    }
-
-    /* 5. BOTONES (Negro con Hover Rojo) */
-    .stButton>button {
-        background-color: #000000 !important;
-        color: #ffffff !important;
-        border: none !important;
-        transition: 0.3s !important;
-    }
-    .stButton>button:hover {
-        background-color: #ff0000 !important;
-        color: #ffffff !important;
-        transform: scale(1.02);
-    }
-
-    /* 6. TABLAS (Quitar fondo oscuro) */
-    .stDataFrame {
-        background-color: #ffffff !important;
-    }
-    </style>
-    """, unsafe_allow_html=True)
 # Función sencilla de clasificación de conceptos usando palabras clave
 def clasificador_ia_sencilla(concepto):
     concepto = concepto.lower()
