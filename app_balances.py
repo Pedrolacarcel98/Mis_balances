@@ -43,6 +43,14 @@ def clasificador_ia_sencilla(concepto):
         ],
         "Educación": [
             "curso", "academia", "universidad", "libro", "formacion", "master", "clases", "escuela"
+        ],
+        "Restaurantes": [
+            "restaurante", "café", "bar", "pizzería", "glovo", "just eat", "ubereats", 
+            "desayuno", "comida", "cena", "burger king", "mcdonalds", "tapa"
+        ],
+        "Tecnología": [
+            "apple", "samsung", "xiaomi", "ordenador", "portátil", "tablet", "smartphone", 
+            "televisión", "tv", "auriculares", "cargador", "gadget"
         ]
     }
 
