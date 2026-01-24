@@ -69,7 +69,7 @@ if not df.empty:
 
 # --- 4. VISUALIZACIÓN Y TABLAS ---
 st.divider()
-col_tab1, col_tab2 = st.columns(2)
+col_tab1, col_tab2, col_tab3 = st.columns(3)
 with col_tab1:
     st.subheader("📥 Ingresos y Cobros")
     df_inc = df[df["tipo"].isin(["Ingreso", "Cobro Préstamo"])].sort_values("fecha", ascending=False)
@@ -79,9 +79,22 @@ with col_tab2:
     df_exp = df[df["tipo"].isin(["Gasto", "Pago Deuda", "Prestado"])].sort_values("fecha", ascending=False)
     st.dataframe(df_exp[["fecha", "tipo", "concepto", "monto"]], use_container_width=True, hide_index=True)
 
+with col_tab3:
+    st.subheader("📊 Resúmenes")
+    if not resumen_deudas.empty:
+        st.markdown("**Deudas Pendientes:**")
+        st.dataframe(resumen_deudas[resumen_deudas['pendiente'] > 0][['concepto', 'monto_total_deuda', 'monto_pagado', 'pendiente']], use_container_width=True, hide_index=True)
+    else:
+        st.info("No hay deudas registradas")
+    
+    if not resumen_prestamos.empty:
+        st.markdown("**Préstamos por Cobrar:**")
+        st.dataframe(resumen_prestamos[resumen_prestamos['por_cobrar'] > 0][['concepto', 'monto_prestado', 'monto_recuperado', 'por_cobrar']], use_container_width=True, hide_index=True)
+    else:
+        st.info("No hay préstamos registrados")
 # --- 5. GESTIÓN DE DATOS (AÑADIR, EDITAR, BORRAR) ---
 st.divider()
-st.subheader("⚙️ Gestión de Movimientos")
+st.subheader("Gestión de Movimientos")
 tab_add, tab_edit, tab_delete = st.tabs(["➕ Añadir", "✏️ Editar", "🗑️ Eliminar"])
 
 # TAB AÑADIR
