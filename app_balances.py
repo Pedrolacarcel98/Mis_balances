@@ -4,41 +4,59 @@ import pandas as pd
 from datetime import datetime
 
 # CSS Minimalista: Blanco, Negro y Rojo
+# --- DISEÑO CSS: TOTAL WHITE & RED ACCENTS ---
 st.markdown("""
     <style>
-    /* Fondo y Texto General */
-    .main { background-color: #ffffff !important; }
-    h1, h2, h3, h4, p, span, label { color: #000000 !important; font-family: 'Segoe UI', sans-serif; }
-    
-    /* Métricas con acento rojo */
-    div[data-testid="stMetric"] {
-        background-color: #ffffff;
-        border: 1px solid #f0f0f0;
-        border-left: 5px solid #ff4b4b;
-        padding: 15px;
-        border-radius: 5px;
-        box-shadow: 2px 2px 10px rgba(0,0,0,0.05);
+    /* 1. FONDO TOTAL BLANCO (Cuerpo, cabecera y barras) */
+    [data-testid="stAppViewContainer"], [data-testid="stHeader"], [data-testid="stToolbar"], .main {
+        background-color: #ffffff !important;
     }
-    
-    /* Botones Negros con Hover Rojo */
+
+    /* 2. TEXTO EN NEGRO (Forzado en toda la app) */
+    h1, h2, h3, h4, h5, h6, p, label, span, div {
+        color: #000000 !important;
+    }
+
+    /* 3. MÉTRICAS (Las tarjetitas blancas con borde rojo) */
+    div[data-testid="stMetric"] {
+        background-color: #ffffff !important;
+        border: 1px solid #eeeeee !important;
+        border-left: 5px solid #ff0000 !important; /* Detalle Rojo */
+        border-radius: 8px !important;
+        box-shadow: 2px 4px 8px rgba(0,0,0,0.05) !important;
+    }
+    /* Forzar color de los números de las métricas */
+    div[data-testid="stMetricValue"] > div {
+        color: #000000 !important;
+    }
+
+    /* 4. BANNER DE SALDO (El de abajo que se veía mal) */
+    .custom-banner {
+        background-color: #f8f9fa !important; /* Gris muy clarito */
+        padding: 25px;
+        border-radius: 12px;
+        border-left: 10px solid #ff0000;
+        margin-bottom: 20px;
+        border: 1px solid #eeeeee;
+    }
+
+    /* 5. BOTONES (Negro con Hover Rojo) */
     .stButton>button {
         background-color: #000000 !important;
         color: #ffffff !important;
-        border: none;
-        border-radius: 4px;
-        transition: 0.3s;
+        border: none !important;
+        transition: 0.3s !important;
     }
     .stButton>button:hover {
-        background-color: #ff4b4b !important;
+        background-color: #ff0000 !important;
+        color: #ffffff !important;
         transform: scale(1.02);
     }
 
-    /* Tabs */
-    button[data-baseweb="tab"] { color: #888888 !important; }
-    button[data-baseweb="tab"][aria-selected="true"] { color: #ff4b4b !important; border-bottom-color: #ff4b4b !important; }
-    
-    /* Divisores */
-    hr { border-top: 1px solid #eeeeee; }
+    /* 6. TABLAS (Quitar fondo oscuro) */
+    .stDataFrame {
+        background-color: #ffffff !important;
+    }
     </style>
     """, unsafe_allow_html=True)
 # Función sencilla de clasificación de conceptos usando palabras clave
