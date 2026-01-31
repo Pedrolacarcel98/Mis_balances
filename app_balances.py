@@ -77,7 +77,7 @@ if not df.empty:
     # --- LA MAGIA PARA TUS DATOS ANTIGUOS ---
     # Esta línea recorre TODO el Excel y aplica la IA a cada fila
     df['categoria'] = df.apply(
-        lambda row: clasificador_ia_sencilla(row['concepto']) if row['tipo'] == 'Gasto' else (
+        lambda row: clasificador_ia_sencilla(row['concepto']) if row['tipo'] in ['Gasto', 'Gasto Factura'] else (
             "Deudas" if "Deuda" in row['tipo'] else (
                 "Préstamos" if "Préstamo" in row['tipo'] or row['tipo'] == "Prestado" else "Ingresos"
             )
@@ -87,7 +87,10 @@ if not df.empty:
 if not df.empty:
     # A. Ingresos y Gastos Estándar
     total_ingresos = df[df['tipo'] == 'Ingreso']['monto'].sum()
-    total_gastos = df[df['tipo'] == 'Gasto']['monto'].sum()
+    # 'Gasto Factura' se considera gasto pero lo guardamos en una métrica separada
+    total_gastos = df[df['tipo'].isin(['Gasto', 'Gasto Factura'])]['monto'].sum()
+    total_gastos_facturas = df[df['tipo'] == 'Gasto Factura']['monto'].sum()
+    total_gastos_estandar = df[df['tipo'] == 'Gasto']['monto'].sum()
     
     # B. Lógica de Deudas (Lo que tú debes)
     deudas_orig = df[df['tipo'] == 'Deuda'].groupby('concepto')['monto'].sum().reset_index()
@@ -117,11 +120,12 @@ if not df.empty:
 
     # --- 3. SECCIÓN DE MÉTRICAS ---
     st.subheader("Resumen de Situación")
-    m1, m2, m3, m4 = st.columns(4)
+    m1, m2, m3, m4, m5 = st.columns(5)
     m1.metric("Ingresos Totales", f"{total_ingresos:,.2f} €")
-    m2.metric("Gastos Totales", f"{total_gastos:,.2f} €", delta=f"-{total_gastos:,.2f} €", delta_color="inverse")
-    m3.metric("Por Cobrar", f"{total_por_cobrar:,.2f} €")
-    m4.metric("Deuda Pendiente", f"{total_deudas_pendientes:,.2f} €", delta_color="inverse")
+    m2.metric("Gastos Estándar", f"{total_gastos_estandar:,.2f} €", delta=f"-{total_gastos_estandar:,.2f} €", delta_color="inverse")
+    m3.metric("Gastos en Facturas", f"{total_gastos_facturas:,.2f} €", delta=f"-{total_gastos_facturas:,.2f} €", delta_color="inverse")
+    m4.metric("Por Cobrar", f"{total_por_cobrar:,.2f} €")
+    m5.metric("Deuda Pendiente", f"{total_deudas_pendientes:,.2f} €", delta_color="inverse")
 
     color_banner = "green" if saldo_disponible >= 0 else "red"
     st.markdown(f"""
@@ -142,7 +146,7 @@ with col_tab1:
     st.dataframe(df_inc[["fecha", "tipo", "concepto", "monto"]], use_container_width=True, hide_index=True)
 with col_tab2:
     st.subheader("📤 Gastos y Pagos")
-    df_exp = df[df["tipo"].isin(["Gasto", "Pago Deuda", "Prestado"])].sort_values("fecha", ascending=False)
+    df_exp = df[df["tipo"].isin(["Gasto", "Gasto Factura", "Pago Deuda", "Prestado"])].sort_values("fecha", ascending=False)
     st.dataframe(df_exp[["fecha", "tipo", "concepto", "monto"]], use_container_width=True, hide_index=True)
 
 with col_tab3:
@@ -162,7 +166,7 @@ with col_tab3:
 #VISUALIZACIÓN:
 with col_tab4:
     st.subheader("📊 Gastos por Categoría (IA)")
-    df_gastos = df[df['tipo'] == 'Gasto']
+    df_gastos = df[df['tipo'].isin(['Gasto', 'Gasto Factura'])]
     if not df_gastos.empty:
         # Agrupamos por la categoría que ha creado nuestra IA
         resumen_cat = df_gastos.groupby('categoria')['monto'].sum().sort_values(ascending=False)
@@ -182,7 +186,7 @@ with tab_add:
     col_t1, col_t2 = st.columns([1, 3])
     with col_t1:
         tipo = st.selectbox("Tipo de Movimiento", 
-                            ["Ingreso", "Gasto", "Deuda", "Pago Deuda", "Prestado", "Cobro Préstamo"], 
+                            ["Ingreso", "Gasto", "Gasto Factura", "Deuda", "Pago Deuda", "Prestado", "Cobro Préstamo"], 
                             key="add_tipo_ia")
 
     with st.form("form_add_final", clear_on_submit=True):
@@ -199,7 +203,7 @@ with tab_add:
             concepto = f_c1.text_input("Concepto / Persona", placeholder="Ej: Taxi al aeropuerto")
             
             # --- FEEDBACK DE LA IA EN TIEMPO REAL ---
-            if tipo == "Gasto" and concepto:
+            if tipo in ["Gasto", "Gasto Factura"] and concepto:
                 cat_ia = clasificador_ia_sencilla(concepto)
                 if cat_ia != "Varios":
                     st.info(f"🤖 **IA detecta:** {cat_ia}")
@@ -212,7 +216,7 @@ with tab_add:
         if st.form_submit_button("Guardar Registro", use_container_width=True):
             if concepto and monto > 0:
                 # 1. Determinar Categoría final
-                if tipo == "Gasto":
+                if tipo in ["Gasto", "Gasto Factura"]:
                     categoria_final = clasificador_ia_sencilla(concepto)
                 elif tipo in ["Deuda", "Pago Deuda"]:
                     categoria_final = "Deudas"
@@ -253,8 +257,9 @@ with tab_edit:
         
         with st.form("form_edit"):
             fe1, fe2, fe3 = st.columns([1, 2, 1])
-            nuevo_tipo = fe1.selectbox("Tipo", ["Ingreso", "Gasto", "Deuda", "Pago Deuda", "Prestado", "Cobro Préstamo"], 
-                                      index=["Ingreso", "Gasto", "Deuda", "Pago Deuda", "Prestado", "Cobro Préstamo"].index(datos_actuales['tipo']))
+            tipos_lista = ["Ingreso", "Gasto", "Gasto Factura", "Deuda", "Pago Deuda", "Prestado", "Cobro Préstamo"]
+            nuevo_tipo = fe1.selectbox("Tipo", tipos_lista, 
+                                      index=tipos_lista.index(datos_actuales['tipo']) if datos_actuales['tipo'] in tipos_lista else 0)
             nuevo_concepto = fe2.text_input("Concepto", value=datos_actuales['concepto'])
             nuevo_monto = fe3.number_input("Euros", min_value=0.0, step=0.01, value=float(datos_actuales['monto']))
             
