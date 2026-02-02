@@ -143,11 +143,11 @@ col_tab1, col_tab2, col_tab3, col_tab4 = st.columns(4)
 with col_tab1:
     st.subheader("📥 Ingresos y Cobros")
     df_inc = df[df["tipo"].isin(["Ingreso", "Cobro Préstamo"])].sort_values("fecha", ascending=False)
-    st.dataframe(df_inc[["fecha", "tipo", "concepto", "monto"]], use_container_width=True, hide_index=True)
+    st.dataframe(df_inc[["tipo", "concepto", "monto"]], use_container_width=True, hide_index=True)
 with col_tab2:
     st.subheader("📤 Gastos y Pagos")
     df_exp = df[df["tipo"].isin(["Gasto", "Gasto Factura", "Pago Deuda", "Prestado"])].sort_values("fecha", ascending=False)
-    st.dataframe(df_exp[["fecha", "tipo", "concepto", "monto"]], use_container_width=True, hide_index=True)
+    st.dataframe(df_exp[["tipo", "concepto", "monto"]], use_container_width=True, hide_index=True)
 
 with col_tab3:
     st.subheader("📊 Resúmenes")
